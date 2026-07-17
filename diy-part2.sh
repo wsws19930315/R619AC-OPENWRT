@@ -35,22 +35,18 @@ rm -rf feeds/passwall_packages/v2ray-plugin
 rm -rf package/feeds/passwall_packages/v2ray-plugin
 
 # 独立拉取缺失的第三方插件，避免引入整个 kenzo 源的冲突
-git clone --depth=1 https://github.com/rufengsuixing/luci-app-adguardhome.git package/luci-app-adguardhome
-git clone --depth=1 https://github.com/sirpdboy/luci-app-netspeedtest.git package/luci-app-netspeedtest
-git clone --depth=1 https://github.com/cokebar/openwrt-vlmcsd.git package/vlmcsd
-git clone --depth=1 https://github.com/cokebar/luci-app-vlmcsd.git package/luci-app-vlmcsd
 git clone --depth=1 -b lede https://github.com/pymumu/luci-app-smartdns.git package/luci-app-smartdns
 git clone --depth=1 https://github.com/sirpdboy/luci-app-lucky.git package/lucky
 
 # Passwall Release 提供了单独的中文语言包，feed 中不一定能直接安装到镜像
 mkdir -p package/passwall-i18n/files
 wget -O package/passwall-i18n/files/luci-i18n-passwall-zh-cn.ipk \
-  https://github.com/Openwrt-Passwall/openwrt-passwall/releases/download/26.5.3-1/23.05-24.10_luci-i18n-passwall-zh-cn_26.5.3_all.ipk
+  https://github.com/Openwrt-Passwall/openwrt-passwall/releases/download/26.7.16-1/23.05-24.10_luci-i18n-passwall-zh-cn_26.7.16_all.ipk
 cat > package/passwall-i18n/Makefile <<'EOF'
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-i18n-passwall-zh-cn-release
-PKG_VERSION:=26.5.3
+PKG_VERSION:=26.7.16
 PKG_RELEASE:=1
 PKG_ARCH:=all
 

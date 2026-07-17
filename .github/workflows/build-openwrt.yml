@@ -1,7 +1,7 @@
 #=============================================================
 # R619AC (竞斗云2.0) OpenWRT 24.10 自动编译
 # 基于 P3TERX/Actions-OpenWrt 模板
-# 源码：OpenWRT 官方 24.10 分支
+# 源码：OpenWRT 官方 v24.10.7
 # 科学上网：Passwall
 #=============================================================
 
@@ -30,7 +30,7 @@ on:
 
 env:
   REPO_URL: https://git.openwrt.org/openwrt/openwrt.git
-  REPO_BRANCH: openwrt-24.10
+  REPO_BRANCH: v24.10.7
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: .config
   DIY_P1_SH: diy-part1.sh

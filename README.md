@@ -7,7 +7,7 @@
 | 项目 | 详情 |
 |------|------|
 | **设备** | P&W R619AC 128M (竞斗云2.0) |
-| **源码** | [OpenWRT 官方](https://git.openwrt.org/openwrt/openwrt.git) `openwrt-24.10` 分支 |
+| **源码** | [OpenWRT 官方](https://git.openwrt.org/openwrt/openwrt.git) `v24.10.7` 标签 |
 | **内核** | Linux 6.6 |
 | **架构** | Qualcomm IPQ4019 (ipq40xx / arm_cortex-a7) |
 
@@ -18,14 +18,13 @@
 |------|------|------|
 | ✅ LuCI 中文界面 | `luci-i18n-*-zh-cn` | 含 Argon 主题 + 配置面板 |
 | ✅ Passwall | `luci-app-passwall` | 科学上网（Xray 核心 + ChinaDNS-NG） |
-| ✅ AdGuard Home | `luci-app-adguardhome` | DNS 广告过滤 |
 | ✅ SmartDNS | `luci-app-smartdns` | DNS 加速分流 |
+| ✅ Lucky | `luci-app-lucky` | DDNS、端口转发与反向代理 |
 
 ### 网络管理
 | 功能 | 包名 | 说明 |
 |------|------|------|
 | ✅ MWAN3 | `luci-app-mwan3` | 多线负载均衡/故障切换 |
-| ✅ Frpc / Frps | `luci-app-frpc/frps` | 内网穿透 |
 | ✅ SQM QoS | `luci-app-sqm` | 智能流量控制 |
 | ✅ DDNS | `luci-app-ddns` | 动态域名（Cloudflare/DNSPod） |
 | ✅ UPnP | `luci-app-upnp` | 端口自动映射 |
@@ -36,14 +35,14 @@
 | 功能 | 包名 | 说明 |
 |------|------|------|
 | ✅ Samba4 | `luci-app-samba4` | USB 硬盘网络共享 (SMB) |
+| ✅ wsdd2 | `wsdd2` | Windows 网络发现 |
 | ✅ Transmission | `luci-app-transmission` | BT 下载 |
-| ✅ 文件管理器 | `luci-app-filemanager` | Web 文件管理 |
+| ✅ MiniDLNA | `luci-app-minidlna` | 局域网媒体服务器 |
+| ✅ smartmontools | `smartmontools` | 硬盘健康状态检查 |
 
 ### 系统工具
 | 功能 | 包名 | 说明 |
 |------|------|------|
-| ✅ KMS 服务器 | `luci-app-vlmcsd` | Windows/Office 激活 |
-| ✅ 网速测试 | `luci-app-netspeedtest` | 内置测速 |
 | ✅ 定时重启 | `luci-app-watchcat` | 定时/断网自动重启 |
 | ✅ irqbalance | `irqbalance` | 多核中断均衡 |
 | ✅ 系统监控 | `luci-app-statistics` | CPU/内存/流量统计 |
@@ -87,11 +86,11 @@
 
 ### 首次配置
 
-1. 网线连接 LAN 口 → 访问 `http://192.168.1.1`
+1. 网线连接 LAN 口 → 访问 `http://192.168.2.1`
 2. 默认用户 `root`，无密码
 3. 设置密码 → 配置 WAN → 配置 WiFi
 4. 配置 Passwall（导入订阅）
-5. 按需启用其他服务（Samba / AdGuard / Transmission 等）
+5. 按需启用其他服务（Samba / SmartDNS / Transmission 等）
 
 ## 文件说明
 
@@ -112,12 +111,11 @@
 - 从旧版（21.02 等）升级到官方 24.10.0 打底时，建议先备份配置，再按实际情况决定是否保留配置
 - 刷机前**备份**旧的 WAN/WiFi/防火墙/科学上网节点配置
 - 128M NAND 空间充裕，当前配置不会超出限制
-- AdGuardHome 和 SmartDNS 不建议同时启用（端口冲突）
 
 ## 致谢
 
 - [OpenWRT](https://openwrt.org/) 官方项目
 - [P3TERX/Actions-OpenWrt](https://github.com/P3TERX/Actions-OpenWrt) 编译模板
-- [xiaorouji/openwrt-passwall](https://github.com/xiaorouji/openwrt-passwall) Passwall
+- [Openwrt-Passwall/openwrt-passwall](https://github.com/Openwrt-Passwall/openwrt-passwall) Passwall
 - [jerrykuku/luci-theme-argon](https://github.com/jerrykuku/luci-theme-argon) Argon 主题
 - [kenzok8/openwrt-packages](https://github.com/kenzok8/openwrt-packages) 第三方插件合集

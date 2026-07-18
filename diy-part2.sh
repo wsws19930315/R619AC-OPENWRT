@@ -34,6 +34,12 @@ rm -rf package/feeds/passwall_packages/geoview
 rm -rf feeds/passwall_packages/v2ray-plugin
 rm -rf package/feeds/passwall_packages/v2ray-plugin
 
+# OpenWrt 24.10 官方 xray-core 版本落后，与当前 Passwall 生成的配置不兼容。
+# 移除同名官方包并强制重装 Passwall 配套版本。
+rm -rf feeds/packages/net/xray-core
+rm -rf package/feeds/packages/xray-core
+./scripts/feeds install -p passwall_packages -f xray-core
+
 # 独立拉取缺失的第三方插件，避免引入整个 kenzo 源的冲突
 git clone --depth=1 -b lede https://github.com/pymumu/luci-app-smartdns.git package/luci-app-smartdns
 git clone --depth=1 https://github.com/sirpdboy/luci-app-lucky.git package/lucky

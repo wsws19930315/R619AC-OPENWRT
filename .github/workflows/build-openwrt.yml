@@ -27,6 +27,9 @@ on:
       - main
     paths:
       - '.config'
+      - 'diy-part1.sh'
+      - 'diy-part2.sh'
+      - '.github/workflows/build-openwrt.yml'
 
 env:
   REPO_URL: https://git.openwrt.org/openwrt/openwrt.git
@@ -97,6 +100,17 @@ jobs:
         chmod +x $DIY_P2_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P2_SH
+
+    - name: 校验 Passwall 配套 Xray 核心
+      run: |
+        cd openwrt
+        XRAY_MAKEFILE=package/feeds/passwall_packages/xray-core/Makefile
+        test -f "$XRAY_MAKEFILE"
+        test ! -e package/feeds/packages/xray-core
+        XRAY_VERSION=$(sed -n 's/^PKG_VERSION:=//p' "$XRAY_MAKEFILE" | head -n 1)
+        test -n "$XRAY_VERSION"
+        dpkg --compare-versions "$XRAY_VERSION" ge "26.7.11"
+        echo "已选中 Passwall xray-core $XRAY_VERSION"
 
     - name: SSH 远程调试（可选）
       uses: P3TERX/ssh2actions@v1.0.0

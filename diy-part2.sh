@@ -1,4 +1,6 @@
 #!/bin/bash
+set -e
+
 #=============================================================
 # diy-part2.sh — 自定义配置加载后执行
 # 用途：修改默认设置（主机名、时区、IP 等）
@@ -28,7 +30,16 @@ uci commit luci
 exit 0
 EOF
 
-# 移除 geoview 和 v2ray-plugin（要求 Go 版本过高，且非核心必备插件）
+# Passwall 当前的 Xray 26.7 和 sing-box 1.13 需要新版 Go，
+# OpenWrt 24.10 官方 feed 的 Go 1.23 无法编译。
+GOLANG_FEED_COMMIT="3757065cca28b7fbe0e1667040412990770ca2f4"
+rm -rf feeds/packages/lang/golang
+git init -q feeds/packages/lang/golang
+git -C feeds/packages/lang/golang remote add origin https://github.com/sbwml/packages_lang_golang.git
+git -C feeds/packages/lang/golang fetch --depth=1 origin "$GOLANG_FEED_COMMIT"
+git -C feeds/packages/lang/golang checkout -q --detach FETCH_HEAD
+
+# 移除 geoview 和 v2ray-plugin（非核心必备，减少编译体积和失败面）
 rm -rf feeds/passwall_packages/geoview
 rm -rf package/feeds/passwall_packages/geoview
 rm -rf feeds/passwall_packages/v2ray-plugin

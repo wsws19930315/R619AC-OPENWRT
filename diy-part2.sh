@@ -1,4 +1,6 @@
 #!/bin/bash
+set -e
+
 #=============================================================
 # diy-part2.sh — 自定义配置加载后执行
 # 用途：修改默认设置（主机名、时区、IP 等）
@@ -28,29 +30,40 @@ uci commit luci
 exit 0
 EOF
 
-# 移除 geoview 和 v2ray-plugin（要求 Go 版本过高，且非核心必备插件）
+# Passwall 当前的 Xray 26.7 和 sing-box 1.13 需要新版 Go，
+# OpenWrt 24.10 官方 feed 的 Go 1.23 无法编译。
+GOLANG_FEED_COMMIT="3757065cca28b7fbe0e1667040412990770ca2f4"
+rm -rf feeds/packages/lang/golang
+git init -q feeds/packages/lang/golang
+git -C feeds/packages/lang/golang remote add origin https://github.com/sbwml/packages_lang_golang.git
+git -C feeds/packages/lang/golang fetch --depth=1 origin "$GOLANG_FEED_COMMIT"
+git -C feeds/packages/lang/golang checkout -q --detach FETCH_HEAD
+
+# 移除 geoview 和 v2ray-plugin（非核心必备，减少编译体积和失败面）
 rm -rf feeds/passwall_packages/geoview
 rm -rf package/feeds/passwall_packages/geoview
 rm -rf feeds/passwall_packages/v2ray-plugin
 rm -rf package/feeds/passwall_packages/v2ray-plugin
 
+# OpenWrt 24.10 官方 xray-core 版本落后，与当前 Passwall 生成的配置不兼容。
+# 移除同名官方包并强制重装 Passwall 配套版本。
+rm -rf feeds/packages/net/xray-core
+rm -rf package/feeds/packages/xray-core
+./scripts/feeds install -p passwall_packages -f xray-core
+
 # 独立拉取缺失的第三方插件，避免引入整个 kenzo 源的冲突
-git clone --depth=1 https://github.com/rufengsuixing/luci-app-adguardhome.git package/luci-app-adguardhome
-git clone --depth=1 https://github.com/sirpdboy/luci-app-netspeedtest.git package/luci-app-netspeedtest
-git clone --depth=1 https://github.com/cokebar/openwrt-vlmcsd.git package/vlmcsd
-git clone --depth=1 https://github.com/cokebar/luci-app-vlmcsd.git package/luci-app-vlmcsd
 git clone --depth=1 -b lede https://github.com/pymumu/luci-app-smartdns.git package/luci-app-smartdns
 git clone --depth=1 https://github.com/sirpdboy/luci-app-lucky.git package/lucky
 
 # Passwall Release 提供了单独的中文语言包，feed 中不一定能直接安装到镜像
 mkdir -p package/passwall-i18n/files
 wget -O package/passwall-i18n/files/luci-i18n-passwall-zh-cn.ipk \
-  https://github.com/Openwrt-Passwall/openwrt-passwall/releases/download/26.5.3-1/23.05-24.10_luci-i18n-passwall-zh-cn_26.5.3_all.ipk
+  https://github.com/Openwrt-Passwall/openwrt-passwall/releases/download/26.7.16-1/23.05-24.10_luci-i18n-passwall-zh-cn_26.7.16_all.ipk
 cat > package/passwall-i18n/Makefile <<'EOF'
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-i18n-passwall-zh-cn-release
-PKG_VERSION:=26.5.3
+PKG_VERSION:=26.7.16
 PKG_RELEASE:=1
 PKG_ARCH:=all
 

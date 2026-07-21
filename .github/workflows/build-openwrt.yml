@@ -1,7 +1,7 @@
 #=============================================================
 # R619AC (竞斗云2.0) OpenWRT 24.10 自动编译
 # 基于 P3TERX/Actions-OpenWrt 模板
-# 源码：OpenWRT 官方 24.10 分支
+# 源码：OpenWRT 官方 v24.10.7
 # 科学上网：Passwall
 #=============================================================
 
@@ -27,10 +27,13 @@ on:
       - main
     paths:
       - '.config'
+      - 'diy-part1.sh'
+      - 'diy-part2.sh'
+      - '.github/workflows/build-openwrt.yml'
 
 env:
   REPO_URL: https://git.openwrt.org/openwrt/openwrt.git
-  REPO_BRANCH: openwrt-24.10
+  REPO_BRANCH: v24.10.7
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: .config
   DIY_P1_SH: diy-part1.sh
@@ -97,6 +100,25 @@ jobs:
         chmod +x $DIY_P2_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P2_SH
+
+    - name: 校验 Passwall 配套 Go 和 Xray
+      run: |
+        cd openwrt
+        GO_MAKEFILE=feeds/packages/lang/golang/golang/Makefile
+        XRAY_MAKEFILE=package/feeds/passwall_packages/xray-core/Makefile
+        test -f "$GO_MAKEFILE"
+        test -f "$XRAY_MAKEFILE"
+        test ! -e package/feeds/packages/xray-core
+        GO_MAJOR_MINOR=$(sed -n 's/^GO_VERSION_MAJOR_MINOR:=//p' "$GO_MAKEFILE" | head -n 1)
+        GO_PATCH=$(sed -n 's/^GO_VERSION_PATCH:=//p' "$GO_MAKEFILE" | head -n 1)
+        GO_VERSION="$GO_MAJOR_MINOR.$GO_PATCH"
+        XRAY_VERSION=$(sed -n 's/^PKG_VERSION:=//p' "$XRAY_MAKEFILE" | head -n 1)
+        test -n "$GO_MAJOR_MINOR"
+        test -n "$GO_PATCH"
+        test -n "$XRAY_VERSION"
+        dpkg --compare-versions "$GO_VERSION" ge "1.26"
+        dpkg --compare-versions "$XRAY_VERSION" ge "26.7.11"
+        echo "已选中 Go $GO_VERSION / Passwall xray-core $XRAY_VERSION"
 
     - name: SSH 远程调试（可选）
       uses: P3TERX/ssh2actions@v1.0.0

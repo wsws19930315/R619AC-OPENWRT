@@ -1,8 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-repo_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-
 required_packages=(
   luci luci-base luci-ssl px5g-mbedtls luci-app-package-manager luci-i18n-base-zh-cn
   luci-i18n-package-manager-zh-cn luci-theme-bootstrap
@@ -23,37 +21,10 @@ fail() {
   exit 1
 }
 
-check_sources() {
-  local type name source extra revision actual count=0
-  local -A seen=()
-  [[ "${REPO_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] || fail '未指定完整的 OpenWrt 固定提交'
-  actual=$(git rev-parse HEAD) || fail '无法读取 OpenWrt 源码版本'
-  test "$actual" = "$REPO_COMMIT" || fail 'OpenWrt 源码偏离固定提交'
-  cmp -s feeds.conf.default "$repo_dir/feeds.conf.default" || fail 'feeds 配置偏离仓库锁定清单'
-  while read -r type name source extra; do
-    [[ -z "$type" || "$type" == \#* ]] && continue
-    test "$type" = src-git && test -z "$extra" || fail 'feed 格式不正确'
-    [[ "$source" =~ ^https://[^\^\;[:space:]]+\^[0-9a-f]{40}$ ]] || fail "feed 未固定完整提交：$name"
-    case "$name" in
-      packages|luci|routing|telephony|video|passwall_luci|passwall_packages) ;;
-      *) fail "未核对的 feed：$name" ;;
-    esac
-    test -z "${seen[$name]:-}" || fail "重复的 feed：$name"
-    seen[$name]=1
-    ((count += 1))
-    revision=${source##*^}
-    test -e "feeds/$name/.git" || fail "feed 未检出为独立 Git 仓库：$name"
-    actual=$(git -C "feeds/$name" rev-parse HEAD) || fail "无法读取 feed：$name"
-    test "$actual" = "$revision" || fail "feed 源码偏离固定提交：$name"
-  done < feeds.conf.default
-  ((count == 7)) || fail '固定 feed 清单不完整'
-}
-
 check_kernel_version() {
   local version=${1%%~*}
   version=${version%%-*}
-  [[ "$version" =~ ^6\.12\.([0-9]+)$ ]] || fail "内核不属于已核对的 6.12 分支：$version"
-  ((10#${BASH_REMATCH[1]} >= 113)) || fail '内核缺少 CVE-2026-98432 修复，至少需要 6.12.113'
+  test "$version" = 6.12.113 || fail '内核必须为本次核对的 6.12.113'
 }
 
 check_config() {
@@ -61,12 +32,8 @@ check_config() {
   grep -qx 'KERNEL_PATCHVER:=6.12' target/linux/ipq40xx/Makefile || fail '目标平台内核分支不正确'
   kernel_suffix=$(awk '$1 == "LINUX_VERSION-6.12" && $2 == "=" { print $3; exit }' target/linux/generic/kernel-6.12)
   check_kernel_version "6.12$kernel_suffix"
+  grep -qx 'LINUX_KERNEL_HASH-6.12.113 = e09b6727e5c521253f0d41694900b9c38fb7604db7d35238a8197aa9f7de2428' target/linux/generic/kernel-6.12 || fail '内核源码校验值不正确'
   grep -qx 'CONFIG_TARGET_ipq40xx_generic_DEVICE_p2w_r619ac-128m=y' .config || fail '目标机型不正确'
-  grep -qx 'CONFIG_IMAGEOPT=y' .config || fail '未启用维护版镜像配置'
-  grep -qx 'CONFIG_VERSIONOPT=y' .config || fail '未启用维护版标识'
-  grep -qx 'CONFIG_VERSION_NUMBER="25.12-maint"' .config || fail '维护版标识不正确'
-  grep -qx 'CONFIG_VERSION_REPO="https://downloads.openwrt.org/releases/25.12.6"' .config || fail 'APK 源未指向已发布的同系列地址'
-  grep -qx '# CONFIG_BUILDBOT is not set' .config || fail '不能生成不匹配的官方 kmods 源'
   grep -qx 'CONFIG_USE_APK=y' .config || fail '必须使用原生 APK 包管理器'
   grep -qx 'CONFIG_LUCI_LANG_zh_Hans=y' .config || fail '未启用简体中文'
   for feed in passwall_luci passwall_packages; do
@@ -102,10 +69,6 @@ check_version() {
 }
 
 case "${1:-config}" in
-  sources)
-    check_sources
-    echo '源码校验通过：OpenWrt 及全部 feeds 均为固定提交'
-    ;;
   config)
     check_config
     echo '配置校验通过：APK、配套核心、中文及必需功能均已选中'
@@ -121,7 +84,7 @@ case "${1:-config}" in
       for package in apk-mbedtls "${required_packages[@]}"; do
         awk -v name="$package" '$1 == name && $2 == "-" { found=1 } END { exit !found }' "$manifest" || fail "产物缺少组件：$package"
       done
-      check_version uhttpd 2026.11.05
+      check_version uhttpd 2026.08.24
       check_version odhcpd-ipv6only 2026.06.29
       check_version libopenssl3 3.5.9
       check_version xray-core 26.10.21
@@ -136,5 +99,5 @@ case "${1:-config}" in
     done
     echo '固件清单校验通过：升级镜像、必需组件和关键安全版本齐全'
     ;;
-  *) fail '参数应为 sources、config 或 firmware' ;;
+  *) fail '参数应为 config 或 firmware' ;;
 esac

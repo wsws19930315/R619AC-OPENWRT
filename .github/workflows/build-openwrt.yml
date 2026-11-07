@@ -1,7 +1,7 @@
 #=============================================================
 # R619AC (竞斗云2.0) OpenWRT 25.12 自动编译
 # 基于 P3TERX/Actions-OpenWrt 模板
-# 源码：OpenWRT 官方 openwrt-25.12 维护分支，固定已核对提交
+# 源码：OpenWRT 官方 v25.12.6，仅移植 6.12.113 内核补丁
 # 科学上网：Passwall
 #=============================================================
 
@@ -27,7 +27,6 @@ on:
       - main
     paths:
       - '.config'
-      - 'feeds.conf.default'
       - 'diy-part1.sh'
       - 'diy-part2.sh'
       - 'scripts/**'
@@ -39,8 +38,8 @@ on:
 
 env:
   REPO_URL: https://git.openwrt.org/openwrt/openwrt.git
-  REPO_BRANCH: openwrt-25.12
-  REPO_COMMIT: d4cb7022585390564196f9849b2f5d10aba006e9
+  REPO_BRANCH: v25.12.6
+  FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: .config
   DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: diy-part2.sh
@@ -92,14 +91,12 @@ jobs:
       working-directory: /workdir
       run: |
         df -hT $PWD
-        git clone --single-branch --branch "$REPO_BRANCH" "$REPO_URL" openwrt
-        git -C openwrt checkout --detach "$REPO_COMMIT"
-        test "$(git -C openwrt rev-parse HEAD)" = "$REPO_COMMIT"
-        git -C openwrt merge-base --is-ancestor "$REPO_COMMIT" "origin/$REPO_BRANCH"
+        git clone $REPO_URL -b $REPO_BRANCH openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
     - name: 加载自定义 feeds（diy-part1.sh）
       run: |
+        [ -e $FEEDS_CONF ] && cp $FEEDS_CONF openwrt/feeds.conf.default
         chmod +x $DIY_P1_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P1_SH
@@ -121,16 +118,14 @@ jobs:
     - name: 整理配置并校验 APK、中文和必需组件
       run: |
         cd openwrt
-        bash "$GITHUB_WORKSPACE/scripts/check-build.sh" sources
         make defconfig
         cp .config .config.full
         bash "$GITHUB_WORKSPACE/scripts/check-build.sh" config
         {
           echo "R619AC build repo: $GITHUB_SHA"
           echo "OpenWrt: $REPO_BRANCH $(git rev-parse HEAD)"
+          echo 'Kernel backport: 8303e9b2a004a6c3754aaa1edb32cfc7c0cfe55b (generic/ipq40xx only)'
           cat target/linux/generic/kernel-6.12
-          echo 'Fixed feeds:'
-          cat feeds.conf.default
           for feed in packages luci routing telephony video passwall_luci passwall_packages; do
             echo "$feed: $(git -C "feeds/$feed" rev-parse HEAD)"
           done
@@ -151,7 +146,6 @@ jobs:
         path: |
           openwrt/.config.full
           openwrt/build-sources.txt
-          feeds.conf.default
 
     - name: SSH 远程调试（可选）
       uses: P3TERX/ssh2actions@v1.0.0
@@ -196,7 +190,6 @@ jobs:
       run: |
         cp openwrt/build-sources.txt openwrt/bin/targets/ipq40xx/generic/
         cp openwrt/.config.full openwrt/bin/targets/ipq40xx/generic/build.config
-        cp feeds.conf.default openwrt/bin/targets/ipq40xx/generic/build.feeds.conf
         cd openwrt/bin/targets/*/*
         rm -rf packages
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
@@ -213,16 +206,16 @@ jobs:
       id: tag
       if: steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
       run: |
-        echo "release_tag=25.12-maint-test_$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
+        echo "release_tag=25.12.6-kernel-6.12.113-test_$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
         touch release.txt
         echo "## R619AC OpenWRT 固件" >> release.txt
         echo "" >> release.txt
         echo "- 源码：OpenWRT 官方 ${{ env.REPO_BRANCH }}" >> release.txt
-        echo "- 固定提交：${{ env.REPO_COMMIT }}；内核：Linux 6.12.113。" >> release.txt
+        echo "- 内核：仅移植官方 6.12.113 更新及 generic/ipq40xx 配套补丁；其余基线恢复为 012d8f7。" >> release.txt
         echo "- 设备：P&W R619AC 128M" >> release.txt
         echo "- 编译时间：$(date +"%Y-%m-%d %H:%M")" >> release.txt
         echo "- 包含：Passwall + LuCI 中文 + 基础工具" >> release.txt
-        echo "- 状态：25.12-maint 自定义维护测试版，不是官方 25.12.7；编译及组件校验不等于实机验收通过。" >> release.txt
+        echo "- 状态：25.12 迁移测试版，编译及组件校验不等于实机验收通过。" >> release.txt
         echo "" >> release.txt
         echo "### 刷机建议" >> release.txt
         echo "" >> release.txt
@@ -230,12 +223,10 @@ jobs:
         echo "2. OpBoot 首次安装、救援及 24.10 跨版本迁移：先刷官方原始精简版 25.12.6 factory.ubi 打底，再从官方 LuCI 保留基础配置刷本 Release 的 sysupgrade.bin。" >> release.txt
         echo "3. 已正常运行本仓库 25.12 的同分支升级可使用 LuCI；镜像校验不通过时不要强制升级。" >> release.txt
         echo "4. 旧配置应分项恢复，旧 IPK、24.10 软件源及内核模块不能复用；详细文件、官方链接和步骤见 README。" >> release.txt
-        echo "   官方 25.12.6 仅用于离线打底，不能当作漏洞修复版长期运行；本固件的用户态 APK 沿用 25.12.6 源，但 6.12.112 内核模块不可用于本次 6.12.113 构建。" >> release.txt
+        echo "   本版不是官方原版 25.12.6；不能混装官方 6.12.112 内核模块，也不要强制忽略依赖或整机执行 apk upgrade。" >> release.txt
         echo "5. 验证 LAN/WAN、双频 WiFi、Passwall、Lucky、硬盘挂载、共享、DLNA 和下载。" >> release.txt
         echo "" >> release.txt
         echo "### 维护修复" >> release.txt
-        echo "- 固定官方 25.12 维护分支及全部 feeds；Linux 6.12.113 包含 CVE-2026-98432 修复。" >> release.txt
-        echo "- 同步该官方提交中的 uhttpd 等核心维护更新，保留既有 Passwall、Lucky 及存储功能。" >> release.txt
         echo "- Samba 更新至 4.22.11，补齐同分支安全修复。" >> release.txt
         echo "- 修正无效的 Passwall 官方 APK 源，补齐 LuCI 本机 HTTPS 证书生成依赖。" >> release.txt
         echo "- Transmission 增加外接存储挂载保护，仅停用未修改的 HAProxy 默认示例服务。" >> release.txt

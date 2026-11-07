@@ -21,7 +21,9 @@ class BuildChecksTest(unittest.TestCase):
         self.config += "\nCONFIG_USE_APK=y\n"
         self.write(".config", self.config)
         self.write("target/linux/ipq40xx/Makefile", "KERNEL_PATCHVER:=6.12\n")
-        self.write("target/linux/generic/kernel-6.12", "LINUX_VERSION-6.12 = .113\n")
+        self.write("target/linux/generic/kernel-6.12",
+                   "LINUX_VERSION-6.12 = .113\n"
+                   "LINUX_KERNEL_HASH-6.12.113 = e09b6727e5c521253f0d41694900b9c38fb7604db7d35238a8197aa9f7de2428\n")
         self.write("feeds/packages/lang/golang/golang-values.mk", "GO_DEFAULT_VERSION:=1.27\n")
         self.write("feeds/packages/lang/golang/golang1.27/Makefile", "GO_VERSION_PATCH:=3\n")
         self.write("package/feeds/passwall_packages/xray-core/Makefile", "PKG_VERSION:=26.10.21\n")
@@ -56,7 +58,7 @@ class BuildChecksTest(unittest.TestCase):
         packages.update({
             "apk-mbedtls": "3.0.3-r1",
             "kernel": "6.12.113~0123456789abcdef-r1",
-            "uhttpd": "2026.11.05~93b05e0b-r1",
+            "uhttpd": "2026.08.24~373145f7-r1",
             "odhcpd-ipv6only": "2026.06.29~5d7be43f-r1",
             "libopenssl3": "3.5.9-r1",
             "libmbedtls21": "3.6.7-r1",
@@ -87,30 +89,19 @@ class BuildChecksTest(unittest.TestCase):
         self.write("target/linux/generic/kernel-6.12", "LINUX_VERSION-6.12 = .112\n")
         result = self.run_check()
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("CVE-2026-98432", result.stderr)
+        self.assertIn("6.12.113", result.stderr)
+
+    def test_unapproved_kernel_source_is_rejected(self):
+        self.write("target/linux/generic/kernel-6.12", "LINUX_VERSION-6.12 = .114\n")
+        self.assertNotEqual(self.run_check().returncode, 0)
 
     def test_wrong_kernel_branch_is_rejected(self):
         self.write("target/linux/ipq40xx/Makefile", "KERNEL_PATCHVER:=6.18\n")
         self.assertNotEqual(self.run_check().returncode, 0)
 
-    def test_unreleased_apk_repository_is_rejected(self):
-        self.write(".config", self.config.replace(
-            'CONFIG_VERSION_REPO="https://downloads.openwrt.org/releases/25.12.6"',
-            'CONFIG_VERSION_REPO="https://downloads.openwrt.org/releases/25.12-SNAPSHOT"'))
-        self.assertNotEqual(self.run_check().returncode, 0)
-
-    def test_official_kmod_repository_is_not_generated(self):
-        self.write(".config", self.config.replace(
-            "# CONFIG_BUILDBOT is not set", "CONFIG_BUILDBOT=y"))
-        self.assertNotEqual(self.run_check().returncode, 0)
-
-    def test_official_release_label_is_rejected(self):
-        self.write(".config", self.config.replace(
-            'CONFIG_VERSION_NUMBER="25.12-maint"', 'CONFIG_VERSION_NUMBER="25.12.7"'))
-        self.assertNotEqual(self.run_check().returncode, 0)
-
-    def test_disabled_image_options_is_rejected(self):
-        self.write(".config", self.config.replace("CONFIG_IMAGEOPT=y", "# CONFIG_IMAGEOPT is not set"))
+    def test_wrong_kernel_hash_is_rejected(self):
+        self.write("target/linux/generic/kernel-6.12",
+                   "LINUX_VERSION-6.12 = .113\nLINUX_KERNEL_HASH-6.12.113 = wrong\n")
         self.assertNotEqual(self.run_check().returncode, 0)
 
     def test_missing_chinese_source_is_rejected(self):
@@ -153,21 +144,16 @@ class BuildChecksTest(unittest.TestCase):
 
     def test_manifest_missing_kernel_is_rejected(self):
         self.manifest(omit="kernel")
-        result = self.run_check("firmware")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("内核", result.stderr)
+        self.assertNotEqual(self.run_check("firmware").returncode, 0)
 
-    def test_manifest_old_kernel_is_rejected(self):
-        self.manifest(versions={"kernel": "6.12.112~0123456789abcdef-r1"})
-        result = self.run_check("firmware")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("CVE-2026-98432", result.stderr)
-
-    def test_manifest_wrong_kernel_branch_is_rejected(self):
-        self.manifest(versions={"kernel": "6.18.60~0123456789abcdef-r1"})
-        result = self.run_check("firmware")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("6.12 分支", result.stderr)
+    def test_manifest_wrong_kernel_is_rejected(self):
+        for version in ("6.12.112~0123456789abcdef-r1", "6.12.114~0123456789abcdef-r1",
+                        "6.18.60~0123456789abcdef-r1"):
+            with self.subTest(version=version):
+                self.manifest(versions={"kernel": version})
+                result = self.run_check("firmware")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("6.12.113", result.stderr)
 
     @unittest.skipUnless(shutil.which("dpkg"), "安全版本比较在 Linux CI 中运行")
     def test_expected_manifest_passes(self):

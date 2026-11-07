@@ -2,12 +2,12 @@
 
 > 竞斗云2.0 (P&W R619AC 128M) 的 OpenWRT 固件自动化编译仓库
 
-当前为 **25.12-maint 自定义维护测试版**，固定官方 25.12 维护分支提交及 Linux 6.12.113，
-不是尚未发布的官方 25.12.7。GitHub 编译、组件及版本校验通过后发布为 Pre-release。
-旧版 25.12.6 / 6.12.112 已在一台 R619AC 128M 上完成官方打底后的基础验证；
-这不能替代本次维护构建的网口、双频 WiFi、代理和 USB 存储实机验收。当前路由器不会自动升级。
+当前为 **25.12.6 / 6.12.113 内核回移测试版**，以本仓库最后成功的 `012d8f7` 为基线，
+只引入官方内核更新及必要补丁，不更新 feeds、插件或其他用户态组件。
+旧版 25.12.6 / 6.12.112 已完成官方打底后的基础实机验证；本次内核回移仍需独立验收。
+GitHub 编译、组件及版本校验通过后发布为 Pre-release，不代表实机验收通过。当前路由器不会自动升级。
 
-> **OpBoot 首次安装必读：必须先刷下文指定的 OpenWrt 官方 25.12.6 原始精简固件 `factory.ubi` 打底，
+> **OpBoot 首次安装必读：必须先刷同版本 OpenWrt 官方原始精简固件的 `factory.ubi` 打底，
 > 确认能正常进入官方系统后，再从 LuCI 保留配置升级本仓库的 `sysupgrade.bin`。**
 > 不要直接在 OpBoot 首刷本仓库的自编译固件。具体文件、下载链接和操作步骤见下方“刷机”。
 
@@ -16,8 +16,8 @@
 | 项目 | 详情 |
 |------|------|
 | **设备** | P&W R619AC 128M (竞斗云2.0) |
-| **源码** | [OpenWRT 官方](https://git.openwrt.org/openwrt/openwrt.git) `openwrt-25.12` 维护分支，固定 `d4cb7022585390564196f9849b2f5d10aba006e9` |
-| **内核** | Linux `6.12.113`；源码和产物均拒绝低于该修复版本的内核，不切换到 6.18 主线 |
+| **源码** | [OpenWRT 官方](https://git.openwrt.org/openwrt/openwrt.git) `v25.12.6` 标签 |
+| **内核** | Linux `6.12.113`，仅回移官方内核补丁；本次尚未完成实机验收 |
 | **架构** | Qualcomm IPQ4019 (`ipq40xx/generic` / `arm_cortex-a7_neon-vfpv4`) |
 | **包管理器** | APK；不能安装原来的 24.10 IPK 包 |
 | **默认 WiFi** | 新生成的双频热点默认开启，SSID `OpenWrt`，无密码，仅供首次配置；保留配置升级沿用原设置 |
@@ -26,7 +26,7 @@
 
 ### 新版本变化与兼容性
 
-- 当前基于官方 `openwrt-25.12` 维护分支的固定提交，沿用 Linux `6.12` 系列，不跟随浮动分支，不使用待合并的 6.12.114/115 更新。
+- 主线已迁移到 OpenWrt `25.12.6`，内核更新为 Linux `6.12` 系列，不是仅替换插件。
 - 包管理器由旧版的 opkg/IPK 改为 APK；不能复用 24.10 的软件源、IPK 或内核模块。
 - 默认使用 Bootstrap 主题，Passwall 与 Xray 版本见上表。
 - 本机曾出现直接刷入后 LAN 或后台无法访问的情况；先刷官方原版打底、再升级本仓库固件的流程已成功。
@@ -35,10 +35,13 @@
 
 ### 本次维护修复
 
-- 内核由 `6.12.112` 更新为 `6.12.113`，包含 IPv4 TCP 的 `CVE-2026-98432` 修复；
-  [官方合并记录](https://github.com/openwrt/openwrt/pull/25958)。必须刷入并启动新内核后才生效，重新编译或关闭 MPTCP 不能代替安装修复。
-- 同步固定官方提交中的核心维护更新，uhttpd 基线为 `2026.11.05`；既有 Passwall、Xray、Lucky 和功能 feed 版本保持不变。
-- 全部 feed 明确固定提交；维护版标识为 `25.12-maint`，用户态 APK 地址沿用官方已发布的 `25.12.6`，避免生成不可用的 `25.12-SNAPSHOT` 地址。
+- 主源码和构建方式恢复为 `012d8f7` 使用的官方 `v25.12.6` 标签；仅移植
+  [官方 6.12.113 更新](https://github.com/openwrt/openwrt/commit/8303e9b2a004a6c3754aaa1edb32cfc7c0cfe55b)
+  中 R619AC 所需的 24 个 `target/linux/generic`、`target/linux/ipq40xx` 文件改动。
+  不整批切换维护分支，不附带升级 uhttpd；feeds 和全部原有功能保持上一成功版本的设置。
+- 内核源码版本、下载哈希及固件 manifest 必须匹配 `6.12.113`。该内核使用新的模块 ABI，
+  不能混装官方 25.12.6 的 `6.12.112` 驱动；新增驱动须同配置编译，不要强制忽略依赖或整机执行 `apk upgrade`。
+- 此次回退不表示此前 GitHub 运行器失联的原因已经确定，也不能保证失联不会再次发生。
 - Samba 沿用 4.22 分支升级到 `4.22.11`，包含修复只读共享访问检查问题的安全更新；
   [CVE-2026-1933 官方说明](https://www.samba.org/samba/security/CVE-2026-1933.html)。
   源码包使用固定 SHA256，不迁移整个 packages feed，也不引入 4.24 的跨分支变化。
@@ -55,15 +58,12 @@
 
 ### 源码固定与构建检查
 
-- 官方主源码由 workflow 的 `REPO_COMMIT` 固定，不能仅指定维护分支名。
-- `feeds.conf.default` 锁定全部七个 feed；LuCI、routing、telephony 和 video 保留原发行版提交，packages、Passwall 和配套核心保留原已核对提交。
-- `diy-part1.sh` 加载锁定清单，`diy-part2.sh` 保留固定 Lucky 提交；构建时逐项核对 OpenWrt 和 feed 的实际 Git HEAD。
+- 官方主源码固定发行标签，官方 packages 固定 25.12 安全维护分支的提交。
+- Passwall、配套核心和 Lucky 均固定提交，详见 `diy-part1.sh` 和 `diy-part2.sh`。
 - SmartDNS 和其管理界面使用官方 feed，去掉旧 LEDE 分支及开机安装中文 IPK 的方式。
 - `make defconfig` 后检查必需组件，防止未知配置被静默移除。
-- 发布前检查固件 manifest 中的内核分支及最低修复版本、功能包、uhttpd、odhcpd、OpenSSL、Mbed TLS 和 Xray 版本。
-- 固件附件保留 `build-sources.txt`、`build.config`、`build.feeds.conf` 和软件包 manifest，便于追溯。
-- 用户态 APK 源不代表内核模块兼容：不能安装官方 25.12.6 的 `6.12.112` 内核模块，也不要强制忽略依赖或整机执行 `apk upgrade`。
-  新增驱动必须使用本次相同配置、相同内核及 ABI 编译的 APK，或加入配置后重新编译固件。
+- 发布前检查固件 manifest 中的 `6.12.113` 内核、功能包、uhttpd、odhcpd、OpenSSL、Mbed TLS 和 Xray 版本。
+- 固件附件保留 `build-sources.txt`、`build.config` 和软件包 manifest，便于追溯。
 
 ## 预装功能
 
@@ -128,8 +128,6 @@
 
 **当前 25.12.6 的官方打底文件：**
 
-这是已验证的 25.12 系列救援基线，不是本次漏洞的修复固件。仅在可信 LAN、断开 WAN 的环境完成打底并立即升级维护固件，不能把旧内核长期暴露到公网。
-
 ```text
 openwrt-25.12.6-ipq40xx-generic-p2w_r619ac-128m-squashfs-factory.ubi
 ```
@@ -153,7 +151,7 @@ c340a935996e43a7ba7c32dd8c23638103a05f4648e267451940f6f69053a210
 9. 先确认网口和后台正常，再分项恢复业务配置并验收；确认可正常使用后再接回其他外设、按需启用下载等服务。
 
 **文件用途不要混淆：**官方 `factory.ubi` 用于上述 OpBoot 打底，本仓库 `sysupgrade.bin` 用于官方系统后台升级；
-`initramfs-zImage.itb` 不属于本说明的常规安装流程。维护固件标识为 `25.12-maint`，不意味着存在同名官方打底镜像；以后升级基础系列时，应重新核对官方打底文件及校验值。
+`initramfs-zImage.itb` 不属于本说明的常规安装流程。以后仓库升级基础版本时，应重新核对同版本官方打底文件及校验值。
 
 #### 从 24.10 跨版本迁移到 25.12
 
@@ -188,7 +186,6 @@ c340a935996e43a7ba7c32dd8c23638103a05f4648e267451940f6f69053a210
 ```
 .
 ├── .config                          # 编译配置文件（完整插件列表）
-├── feeds.conf.default               # 全部官方及第三方 feed 的固定提交
 ├── .github/workflows/
 │   └── build-openwrt.yml            # GitHub Actions 自动编译脚本
 ├── diy-part1.sh                     # 添加第三方插件源
@@ -203,7 +200,7 @@ c340a935996e43a7ba7c32dd8c23638103a05f4648e267451940f6f69053a210
 
 ## ⚠️ 注意事项
 
-- **OpBoot 首次安装或救援恢复必须先刷下文指定的官方原版 `factory.ubi` 打底，再在官方后台保留配置刷本仓库的 `sysupgrade.bin`。当前打底版本为 25.12.6，维护固件为 25.12-maint。**
+- **OpBoot 首次安装或救援恢复必须先刷同版本官方原版 `factory.ubi` 打底，再在官方后台保留配置刷本仓库的 `sysupgrade.bin`。当前对应版本为 25.12.6。**
 - 不要直接用 OpBoot 首刷本仓库自编译 `factory.ubi`，也不要混用 R619AC 64M 镜像。
 - 旧版 24.10.0 官方打底经验不等于新版 25.12 的安装说明；跨版本迁移请使用上面的对应版本流程。
 - 刷机前**备份**旧的 WAN/WiFi/防火墙/科学上网节点配置
